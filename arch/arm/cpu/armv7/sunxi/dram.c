@@ -293,10 +293,18 @@ static int dramc_scan_readpipe(void)
 static int dramc_scan_dll_para(void)
 {
 	struct sunxi_dram_reg *dram = (struct sunxi_dram_reg *)SUNXI_DRAMC_BASE;
-	const u32 dqs_dly[7] = {0x3, 0x2, 0x1, 0x0, 0xe, 0xd, 0xc};
-	const u32 clk_dly[15] = {0x07, 0x06, 0x05, 0x04, 0x03,
-				 0x02, 0x01, 0x00, 0x08, 0x10,
-				 0x18, 0x20, 0x28, 0x30, 0x38};
+	/* See SDPHASE [17:14] bits description in the RK30XX manual */
+	const u32 dqs_dly[7] = {0x3,  /*  36 */
+				0x2,  /*  54 */
+				0x1,  /*  72 */
+				0x0,  /*  90 */
+				0xe,  /* 108 */
+				0xd,  /* 126 */
+				0xc}; /* 144 */
+	/* See MFWDLY [11:9] and MFBDLY [8:6] bits description in the RK30XX manual */
+	const u32 clk_dly[15] = {0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01,  /* MFBDLY */
+				 0x00,
+				 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38}; /* MFWDLY */
 	u32 clk_dqs_count[15];
 	u32 dqs_i, clk_i, cr_i;
 	u32 max_val, min_val;
