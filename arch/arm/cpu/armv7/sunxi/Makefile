@@ -40,6 +40,8 @@ obj-$(CONFIG_SUN5I)	+= dram.o
 obj-$(CONFIG_SUN7I)	+= dram.o
 ifdef CONFIG_SPL_FEL
 obj-y	+= start.o
+obj-y	+= s_init_arm.o
+CFLAGS_s_init_arm.o += -marm
 endif
 endif
 

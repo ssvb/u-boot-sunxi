@@ -6,7 +6,7 @@
  */
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
-ENTRY(s_init)
+ENTRY(s_init_arm)
 SECTIONS
 {
 	. = 0x00002000;
@@ -14,7 +14,7 @@ SECTIONS
 	. = ALIGN(4);
 	.text :
 	{
-		*(.text.s_init)
+		*(.text.s_init_arm)
 		*(.text*)
 	}
 
