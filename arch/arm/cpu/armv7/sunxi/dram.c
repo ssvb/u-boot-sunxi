@@ -474,6 +474,50 @@ static void dramc_set_autorefresh_cycle(u32 clk, u32 type, u32 density)
 	writel(DRAM_DRR_TREFI(tREFI) | DRAM_DRR_TRFC(tRFC), &dram->drr);
 }
 
+/* Get the number of DDR byte lanes */
+static u32 mctl_get_number_of_lanes(void)
+{
+	struct sunxi_dram_reg *dram = (struct sunxi_dram_reg *)SUNXI_DRAMC_BASE;
+	switch (readl(&dram->dcr) & DRAM_DCR_BUS_WIDTH_MASK) {
+	case DRAM_DCR_BUS_WIDTH(DRAM_DCR_BUS_WIDTH_32BIT):
+		return 4;
+	case DRAM_DCR_BUS_WIDTH(DRAM_DCR_BUS_WIDTH_16BIT):
+		return 2;
+	default:
+		return 1;
+	}
+}
+
+/*
+ * The data from rslrX and rdgrX registers (X=rank) is stored
+ * in a single 32-bit value using the following format:
+ *   bits [31:26] - DQS gating system latency for byte lane 3
+ *   bits [25:24] - DQS gating phase select for byte lane 3
+ *   bits [23:18] - DQS gating system latency for byte lane 2
+ *   bits [17:16] - DQS gating phase select for byte lane 2
+ *   bits [15:10] - DQS gating system latency for byte lane 1
+ *   bits [ 9:8 ] - DQS gating phase select for byte lane 1
+ *   bits [ 7:2 ] - DQS gating system latency for byte lane 0
+ *   bits [ 1:0 ] - DQS gating phase select for byte lane 0
+ */
+static u32 mctl_get_dqs_gating_delay(int rank)
+{
+	struct sunxi_dram_reg *dram = (struct sunxi_dram_reg *)SUNXI_DRAMC_BASE;
+	u32 lane, number_of_lanes = mctl_get_number_of_lanes();
+	u32 dqs_gating_delay = 0;
+	/* rank0 gating system latency (3 bits per lane: cycles) */
+	u32 slr = readl(rank == 0 ? &dram->rslr0 : &dram->rslr1);
+	/* rank0 gating phase select (2 bits per lane: 90, 180, 270, 360) */
+	u32 dgr = readl(rank == 0 ? &dram->rdgr0 : &dram->rdgr1);
+	for (lane = 0; lane < number_of_lanes; lane++)
+	{
+		u32 tmp = ((slr >> (lane * 3)) & 7) << 2;
+		tmp |= ((dgr >> (lane * 2)) & 3);
+		dqs_gating_delay |= tmp << (lane * 8);
+	}
+	return dqs_gating_delay;
+}
+
 unsigned long dramc_init(struct dram_para *para)
 {
 	struct sunxi_dram_reg *dram = (struct sunxi_dram_reg *)SUNXI_DRAMC_BASE;
@@ -667,6 +711,10 @@ unsigned long dramc_init(struct dram_para *para)
 	}
 #endif
 
+	printf("\n");
+	printf("before dqs gate training: rslr0=%08X, rdgr0=%08X\n",
+		readl(&dram->rslr0), readl(&dram->rdgr0));
+
 	/* scan read pipe value */
 	mctl_itm_enable();
 	if (para->tpr3 & (0x1 << 31)) {
@@ -682,6 +730,10 @@ unsigned long dramc_init(struct dram_para *para)
 	} else {
 		ret_val = dramc_scan_readpipe();
 	}
+
+	printf("after dqs gate training:  rslr0=%08X, rdgr0=%08X\n",
+		readl(&dram->rslr0), readl(&dram->rdgr0));
+	printf("dqs_gating_delay=%08X\n", mctl_get_dqs_gating_delay(0));
 
 	if (ret_val < 0)
 		return 0;
