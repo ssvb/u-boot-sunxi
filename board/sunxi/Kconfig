@@ -19,7 +19,14 @@ config SYS_CONFIG_NAME
 
 endif
 
-if TARGET_SUN4I || TARGET_SUN5I || TARGET_SUN7I
+if TARGET_SUN4I_SUN5I_SUN7I
+
+config SYS_CONFIG_NAME
+	default "sun4i_sun5i_sun7i"
+
+endif
+
+if TARGET_SUN4I || TARGET_SUN5I || TARGET_SUN7I || TARGET_SUN4I_SUN5I_SUN7I
 
 config SYS_CPU
 	default "armv7"

@@ -38,3 +38,10 @@ M:	FUKAUMI Naoki <naobsd@gmail.com>
 S:	Maintained
 F:	board/sunxi/dram_a20_olinuxino_l.c
 F:	configs/A20-OLinuXino-Lime_defconfig
+
+SUNXI GENERIC
+M:	Siarhei Siamashka <siarhei.siamashka@gmail.com>
+S:	Maintained
+F:	include/configs/sun4i_sun5i_sun7i.h
+F:	configs/sunxi-generic-a10-a13-a20_defconfig
+F:	configs/sunxi-generic-a10-a13-a20_FEL_defconfig

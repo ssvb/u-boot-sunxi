@@ -12,5 +12,13 @@
 #include <linux/types.h>
 
 void sdelay(unsigned long);
+int  sunxi_cons_index(void);
+
+int  soc_is_sun4i(void);
+int  soc_is_sun5i(void);
+int  soc_is_sun7i(void);
+
+int  soc_is_a13(void);
+int  soc_is_a10s(void);
 
 #endif
