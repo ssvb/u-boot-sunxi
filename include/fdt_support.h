@@ -145,6 +145,9 @@ static inline u64 of_read_number(const fdt32_t *cell, int size)
 void of_bus_default_count_cells(void *blob, int parentoffset,
 					int *addrc, int *sizec);
 
+int fdt_setup_simplefb_node(void *fdt, int node, u64 base_address, u32 width,
+			    u32 height, u32 stride, const char *format);
+
 #endif /* ifdef CONFIG_OF_LIBFDT */
 
 #ifdef USE_HOSTCC
