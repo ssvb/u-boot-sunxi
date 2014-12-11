@@ -184,6 +184,18 @@ int misc_init_r(void)
 		}
 	}
 
+#ifdef CONFIG_SUN4I_SUN5I_SUN7I
+	/* Different boot_scripts names when using runtime SoC type detection */
+	if (soc_is_sun4i())
+		setenv("boot_scripts", "setup/boot-a10.scr boot.scr.uimg boot.scr");
+	if (soc_is_a13())
+		setenv("boot_scripts", "setup/boot-a13.scr boot.scr.uimg boot.scr");
+	if (soc_is_a10s())
+		setenv("boot_scripts", "setup/boot-a10s.scr boot.scr.uimg boot.scr");
+	if (soc_is_sun7i())
+		setenv("boot_scripts", "setup/boot-a20.scr boot.scr.uimg boot.scr");
+#endif
+
 	return 0;
 }
 #endif
