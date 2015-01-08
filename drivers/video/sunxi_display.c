@@ -19,6 +19,7 @@
 #include <fdtdec.h>
 #include <fdt_support.h>
 #include <video_fb.h>
+#include "sunxi_lcd_panel.h"
 #include "videomodes.h"
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -487,6 +488,10 @@ static void sunxi_lcdc_panel_enable(void)
 		gpio_request(pin, "lcd_power");
 		gpio_direction_output(pin, 1);
 	}
+
+#ifdef CONFIG_VIDEO_LCD_PANEL_HITACHI_TX18D42VM
+	sunxi_lcd_panel_hitachi_tx18d42vm_init();
+#endif
 }
 
 static void sunxi_lcdc_backlight_enable(void)

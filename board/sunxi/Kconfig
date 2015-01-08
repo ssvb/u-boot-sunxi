@@ -369,6 +369,10 @@ config VIDEO_LCD_PANEL_LVDS
 	bool "Generic lvds interface LCD panel"
 	select VIDEO_LCD_IF_LVDS
 
+config VIDEO_LCD_PANEL_HITACHI_TX18D42VM
+	bool "Hitachi tx18d42vm LCD panel"
+	select VIDEO_LCD_IF_LVDS
+
 endchoice
 
 
