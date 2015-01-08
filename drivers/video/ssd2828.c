@@ -98,6 +98,9 @@
 #define	SSD2828_CFGR_LPE				(1 << 10)
 #define	SSD2828_CFGR_TXD				(1 << 11)
 
+#define	SSD2828_ISR_READ_DATA_READY			(1 << 0)
+#define	SSD2828_ISR_BTA_RESPONSE			(1 << 2)
+
 #define	SSD2828_VIDEO_MODE_NON_BURST_WITH_SYNC_PULSES	(0 << 2)
 #define	SSD2828_VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS	(1 << 2)
 #define	SSD2828_VIDEO_MODE_BURST			(2 << 2)
@@ -167,6 +170,30 @@ static void write_hw_register(const struct ssd2828_config *cfg, u8 regnum,
 	soft_spi_xfer_24bit_3wire(cfg, 0x720000 | val);
 }
 
+static int await_completion(const struct ssd2828_config *cfg,
+			    u8 reg, u32 mask, u32 val)
+{
+	unsigned long tmo = timer_get_us() + 100000;
+
+	while ((read_hw_register(cfg, reg) & mask) != val) {
+		if (timer_get_us() > tmo)
+			return 1;
+	}
+	return 0;
+}
+
+static int await_bits_set(const struct ssd2828_config *cfg,
+			  u8 reg, u32 val)
+{
+	return await_completion(cfg, reg, val, val);
+}
+
+static int await_bits_clear(const struct ssd2828_config *cfg,
+			    u8 reg, u32 val)
+{
+	return await_completion(cfg, reg, val, 0);
+}
+
 /*
  * Send MIPI command to the LCD panel (cmdnum < 0xB0)
  */
@@ -176,6 +203,79 @@ static void send_mipi_dcs_command(const struct ssd2828_config *cfg, u8 cmdnum)
 	write_hw_register(cfg, SSD2828_PSCR1, 1);
 	/* Send the command */
 	write_hw_register(cfg, SSD2828_PDR, cmdnum);
+}
+
+/*
+ * Sends a MIPI DCS command to retrieve information from the LCD panel.
+ */
+static int send_mipi_dcs_read_command(const struct ssd2828_config *cfg,
+				      u8                           cmdnum,
+				      u8                          *result_buf,
+				      int                          bufsize)
+{
+	int size, i, result = 0;
+	/* Save CFGR register */
+	u32 old_cfgr = read_hw_register(cfg, SSD2828_CFGR);
+
+	/* Set the read enable bit */
+	write_hw_register(cfg, SSD2828_CFGR, old_cfgr | SSD2828_CFGR_REN);
+	/* Clear buffers and bring the state machine to its initial state */
+	write_hw_register(cfg, SSD2828_OCR, 1);
+	if (await_bits_clear(cfg, SSD2828_OCR, 1) != 0)
+		goto err;
+	/* Clear the RW1C bits in the ISR register */
+	write_hw_register(cfg, SSD2828_ISR, read_hw_register(cfg, SSD2828_ISR));
+
+	/* Set the payload size (only the DCS command itself) */
+	write_hw_register(cfg, SSD2828_PSCR1, 1);
+	/* Set maximum return size */
+	write_hw_register(cfg, SSD2828_MRSR, bufsize);
+	/* Write the command */
+	write_hw_register(cfg, SSD2828_PDR, cmdnum);
+
+	/* Wait for the response */
+	if (await_bits_set(cfg, SSD2828_ISR, SSD2828_ISR_BTA_RESPONSE) != 0)
+		goto err; /* Timeout */
+
+	/* Check if there is anything in the read buffer */
+	if (!(read_hw_register(cfg, SSD2828_ISR) & SSD2828_ISR_READ_DATA_READY))
+		goto err; /* There is no data to read */
+
+	/* The size of the response packet */
+	size = read_hw_register(cfg, SSD2828_RDCR);
+	if (size > bufsize) {
+		debug("SSD2828: Suspicious packet size.\n");
+		size = bufsize;
+	}
+	result = size;
+
+	/*
+	 * This is somewhat special and does not seem to be well documented:
+	 * 1) In order to properly read the data, all the buffer must be read
+	 *    in one go without any interruptions. For example, using individual
+	 *    reads done by the "read_hw_register" function only result in
+	 *    repeatedly getting all the same first 16-bits of data without
+	 *    advancing.
+	 * 2) In order to empty the buffer, it is necessary to read as much
+	 *    data as was initially configured in the MRSR register. The real
+	 *    size of the packet in the RDCR register just indicates how much
+	 *    of it is actually valid.
+	 */
+	soft_spi_xfer_24bit_3wire(cfg, 0x700000 | SSD2828_RR);
+	for (i = 0; i < (bufsize + 1) / 2; i++) {
+		u16 data = soft_spi_xfer_24bit_3wire(cfg, 0x730000);
+		if (size-- > 0)
+			*result_buf++ = data & 0xFF;
+		if (size-- > 0)
+			*result_buf++ = (data >> 8) & 0xFF;
+	}
+
+	if (read_hw_register(cfg, SSD2828_ISR) & SSD2828_ISR_READ_DATA_READY)
+		debug("SSD2828: There is still some bogus unread data.\n");
+err:
+	/* Restore CFGR register */
+	write_hw_register(cfg, SSD2828_CFGR, old_cfgr);
+	return result;
 }
 
 /*
@@ -337,6 +437,42 @@ static int ssd2828_configure_video_interface(const struct ssd2828_config *cfg,
 	return 0;
 }
 
+static void ssd2828_report_dcs_read_result(const struct ssd2828_config *cfg,
+					   u8 cmd)
+{
+	u8 buf[64];
+	int size, i;
+	size = send_mipi_dcs_read_command(cfg, cmd, buf, sizeof(buf));
+	if (size > 0) {
+		printf("DCS command 0x%02X returned %2d bytes:", cmd, size);
+		for (i = 0; i < size; i++)
+			printf(" %02X", buf[i]);
+		printf("\n");
+	}
+}
+
+/*
+ * Try to use different DCS commands to identify the panel id and
+ * report it in the log.
+ */
+static void ssd2828_report_panel_id(const struct ssd2828_config *cfg)
+{
+	printf("Trying standard MIPI DSI commands to identify LCD panel:\n");
+
+	ssd2828_report_dcs_read_result(cfg, MIPI_DCS_GET_DISPLAY_ID);
+	ssd2828_report_dcs_read_result(cfg, MIPI_DCS_READ_DDB_START);
+
+	printf("Trying nonstandard MIPI DSI commands to identify LCD panel:\n");
+
+	/* Used by some LG panels (for example, LH350WS1-SD02.pdf) */
+	ssd2828_report_dcs_read_result(cfg, 0xB1);
+
+	/* Used by many LCD panels (for example, DA8620.pdf) */
+	ssd2828_report_dcs_read_result(cfg, 0xDA);
+	ssd2828_report_dcs_read_result(cfg, 0xDB);
+	ssd2828_report_dcs_read_result(cfg, 0xDC);
+}
+
 int ssd2828_init(const struct ssd2828_config *cfg,
 		 const struct ctfb_res_modes *mode)
 {
@@ -424,6 +560,10 @@ int ssd2828_init(const struct ssd2828_config *cfg,
 
 	send_mipi_dcs_command(cfg, MIPI_DCS_EXIT_SLEEP_MODE);
 	mdelay(cfg->mipi_dsi_delay_after_exit_sleep_mode_ms);
+
+	/* If it is possible to read back, then try to retrieve the panel id */
+	if (cfg->sdo_pin != -1)
+		ssd2828_report_panel_id(cfg);
 
 	send_mipi_dcs_command(cfg, MIPI_DCS_SET_DISPLAY_ON);
 	mdelay(cfg->mipi_dsi_delay_after_set_display_on_ms);
