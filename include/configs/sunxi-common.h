@@ -272,10 +272,15 @@
 #ifndef CONFIG_SPL_BUILD
 #include <config_distro_defaults.h>
 
+/* Enable pre-console buffer to get complete log on the VGA console */
+#define CONFIG_PRE_CONSOLE_BUFFER
+#define CONFIG_PRE_CON_BUF_SZ		(1024 * 1024)
+#define CONFIG_PRE_CON_BUF_ADDR		(0x43000000 - CONFIG_PRE_CON_BUF_SZ)
+
 /*
  * 240M RAM (256M minimum minus space for the framebuffer),
- * 32M uncompressed kernel, 16M compressed kernel, 1M fdt,
- * 1M script, 1M pxe and the ramdisk at the end.
+ * 32M uncompressed kernel, 15M compressed kernel, 1M pre-console
+ * buffer, 1M fdt, 1M script, 1M pxe and the ramdisk at the end.
  */
 #define MEM_LAYOUT_ENV_SETTINGS \
 	"bootm_size=0xf000000\0" \
