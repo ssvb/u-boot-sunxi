@@ -79,7 +79,6 @@ int sunxi_ssd2828_init(const struct ctfb_res_modes *mode)
 		.sdi_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_MOSI),
 		.sdo_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_MISO),
 		.reset_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SSD2828_RESET),
-		.ssd2828_tx_clk_khz                      = 27000,
 		.ssd2828_color_depth                     = 24,
 #ifdef CONFIG_VIDEO_LCD_PANEL_MIPI_4_LANE_513_MBPS_VIA_SSD2828
 		.mipi_dsi_number_of_data_lanes           = 4,
