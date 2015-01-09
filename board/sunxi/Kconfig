@@ -345,6 +345,60 @@ config VIDEO_LCD_BL_PWM
 	Set the backlight pwm pin for the LCD panel. This takes a string in the
 	format understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
 
+config VIDEO_LCD_SPI_CS
+	string "SPI CS pin for LCD related config job"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+	---help---
+	This is one of the SPI communication pins, involved in setting up a
+	working LCD configuration. The exact role of SPI may differ for
+	different hardware setups. The option takes a string in the format
+	understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
+
+config VIDEO_LCD_SPI_SCLK
+	string "SPI SCLK pin for LCD related config job"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+	---help---
+	This is one of the SPI communication pins, involved in setting up a
+	working LCD configuration. The exact role of SPI may differ for
+	different hardware setups. The option takes a string in the format
+	understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
+
+config VIDEO_LCD_SPI_MOSI
+	string "SPI MOSI pin for LCD related config job"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+	---help---
+	This is one of the SPI communication pins, involved in setting up a
+	working LCD configuration. The exact role of SPI may differ for
+	different hardware setups. The option takes a string in the format
+	understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
+
+config VIDEO_LCD_SPI_MISO
+	string "SPI MISO pin for LCD related config job (optional)"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+	---help---
+	This is one of the SPI communication pins, involved in setting up a
+	working LCD configuration. The exact role of SPI may differ for
+	different hardware setups. If wired up, this pin may provide additional
+	useful functionality. Such as bi-directional communication with the
+	hardware and LCD panel id retrieval (if the panel can report it). The
+	option takes a string in the format understood by sunxi_name_to_gpio,
+	e.g. PH1 for pin 1 of port H.
+
+config VIDEO_LCD_SSD2828_RESET
+	string "RESET pin of SSD2828"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+	---help---
+	The reset pin of SSD2828 chip. This takes a string in the format
+	understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
+
+config VIDEO_LCD_SSD2828
+	bool
+	select VIDEO_LCD_IF_PARALLEL
 
 # Note only one of these may be selected at a time! But hidden choices are
 # not supported by Kconfig
@@ -372,6 +426,12 @@ config VIDEO_LCD_PANEL_LVDS
 config VIDEO_LCD_PANEL_HITACHI_TX18D42VM
 	bool "Hitachi tx18d42vm LCD panel"
 	select VIDEO_LCD_IF_LVDS
+
+config VIDEO_LCD_PANEL_MIPI_4_LANE_513_MBPS_VIA_SSD2828
+	bool "MIPI 4-lane, 513Mbps LCD panel via SSD2828 bridge chip"
+	select VIDEO_LCD_SSD2828
+	---help---
+	 7.85" 768x1024 LCD panels, such as LG LP079X01 or AUO B079XAN01.0
 
 endchoice
 

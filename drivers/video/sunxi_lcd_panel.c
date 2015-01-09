@@ -11,6 +11,8 @@
 #include <asm/arch/gpio.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include "sunxi_lcd_panel.h"
+#include "ssd2828.h"
 
 #ifdef CONFIG_VIDEO_LCD_PANEL_HITACHI_TX18D42VM
 
@@ -63,6 +65,42 @@ void sunxi_lcd_panel_hitachi_tx18d42vm_init(void)
 	mdelay(50); /* All the tx18d42vm drivers have a delay here ? */
 
 	sunxi_lcd_panel_spi_write(0x00ad, 16); /* display on */
+}
+
+#endif
+
+#ifdef CONFIG_VIDEO_LCD_SSD2828
+
+int sunxi_ssd2828_init(const struct ctfb_res_modes *mode)
+{
+	struct ssd2828_config cfg = {
+		.csx_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_CS),
+		.sck_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_SCLK),
+		.sdi_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_MOSI),
+		.sdo_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_MISO),
+		.reset_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SSD2828_RESET),
+		.ssd2828_tx_clk_khz                      = 27000,
+		.ssd2828_color_depth                     = 24,
+#ifdef CONFIG_VIDEO_LCD_PANEL_MIPI_4_LANE_513_MBPS_VIA_SSD2828
+		.mipi_dsi_number_of_data_lanes           = 4,
+		.mipi_dsi_bitrate_per_data_lane_mbps     = 513,
+		.mipi_dsi_delay_after_exit_sleep_mode_ms = 100,
+		.mipi_dsi_delay_after_set_display_on_ms  = 200
+#else
+#error MIPI LCD panel needs configuration parameters
+#endif
+	};
+
+	if (cfg.csx_pin == -1 || cfg.sck_pin == -1 || cfg.sdi_pin == -1) {
+		printf("SSD2828: SPI pins are not properly configured\n");
+		return 1;
+	}
+	if (cfg.reset_pin == -1) {
+		printf("SSD2828: Reset pin is not properly configured\n");
+		return 1;
+	}
+
+	return ssd2828_init(&cfg, mode);
 }
 
 #endif

@@ -850,6 +850,9 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 		sunxi_lcdc_tcon0_mode_set(mode);
 		sunxi_composer_enable();
 		sunxi_lcdc_enable();
+#ifdef CONFIG_VIDEO_LCD_SSD2828
+		sunxi_ssd2828_init(mode);
+#endif
 		sunxi_lcdc_backlight_enable();
 		break;
 	case sunxi_monitor_vga:
