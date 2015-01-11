@@ -407,6 +407,11 @@ config VIDEO_LCD_RESET
 	depends on VIDEO_LCD_SSD2828
 	default ""
 
+config VIDEO_LCD_UNKNOWN
+	string "Unknown pin, maybe related to enabling SSD2828 power"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+
 config VIDEO_LCD_SSD2828
 	bool
 	select VIDEO_LCD_IF_PARALLEL

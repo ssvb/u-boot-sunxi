@@ -73,6 +73,8 @@ void sunxi_lcd_panel_hitachi_tx18d42vm_init(void)
 
 int sunxi_ssd2828_init(const struct ctfb_res_modes *mode)
 {
+	int unknown_pin;
+
 	struct ssd2828_config cfg = {
 		.csx_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_CS),
 		.sck_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_SPI_SCLK),
@@ -90,6 +92,16 @@ int sunxi_ssd2828_init(const struct ctfb_res_modes *mode)
 #error MIPI LCD panel needs configuration parameters
 #endif
 	};
+
+	/*
+	 * In Android sources:
+	 * #define lcd_2828_pd(v)  (LCD_GPIO_write(0, 5, v))	//PH22
+	 *
+	 * SSD2828 'P'ower 'D'isable?
+	 */
+	unknown_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_UNKNOWN);
+	if (unknown_pin != -1)
+		gpio_direction_output(unknown_pin, 0);
 
 	if (cfg.csx_pin == -1 || cfg.sck_pin == -1 || cfg.sdi_pin == -1) {
 		printf("SSD2828: SPI pins are not properly configured\n");
