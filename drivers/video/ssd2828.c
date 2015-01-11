@@ -285,8 +285,12 @@ static void ssd2828_reset(const struct ssd2828_config *cfg)
 {
 	/* RESET needs 10 milliseconds according to the datasheet */
 	gpio_set_value(cfg->reset_pin, 0);
+	if (cfg->lcd_reset_pin != -1)
+		gpio_set_value(cfg->lcd_reset_pin, 0);
 	mdelay(10);
 	gpio_set_value(cfg->reset_pin, 1);
+	if (cfg->lcd_reset_pin != -1)
+		gpio_set_value(cfg->lcd_reset_pin, 1);
 	mdelay(10);
 }
 
@@ -322,7 +326,20 @@ static int ssd2828_enable_gpio(const struct ssd2828_config *cfg)
 		printf("SSD2828: request for 'ssd2828_sdo' pin failed\n");
 		return 1;
 	}
+	if (cfg->lcd_reset_pin != -1 && gpio_request(cfg->lcd_reset_pin,
+						     "lcd_reset")) {
+		gpio_free(cfg->csx_pin);
+		gpio_free(cfg->sck_pin);
+		gpio_free(cfg->sdi_pin);
+		gpio_free(cfg->reset_pin);
+		if (cfg->sdo_pin != -1)
+			gpio_free(cfg->sdo_pin);
+		printf("SSD2828: request for 'lcd_reset' pin failed\n");
+		return 1;
+	}
 	gpio_direction_output(cfg->reset_pin, 0);
+	if (cfg->lcd_reset_pin != -1)
+		gpio_direction_output(cfg->lcd_reset_pin, 0);
 	gpio_direction_output(cfg->csx_pin, 1);
 	gpio_direction_output(cfg->sck_pin, 1);
 	gpio_direction_output(cfg->sdi_pin, 1);
@@ -340,6 +357,8 @@ static int ssd2828_free_gpio(const struct ssd2828_config *cfg)
 	gpio_free(cfg->reset_pin);
 	if (cfg->sdo_pin != -1)
 		gpio_free(cfg->sdo_pin);
+	if (cfg->lcd_reset_pin != -1)
+		gpio_free(cfg->lcd_reset_pin);
 	return 1;
 }
 

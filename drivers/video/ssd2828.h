@@ -39,8 +39,8 @@ struct ssd2828_config {
 	int sck_pin;
 	int sdi_pin;
 	int sdo_pin;
-	/* SSD2828 reset pin (shared with LCD panel reset) */
-	int reset_pin;
+	int reset_pin; /* SSD2828 reset pin */
+	int lcd_reset_pin; /* LCD panel reset pin */
 
 	/*
 	 * The SSD2828 has its own dedicated clock source 'tx_clk' (connected

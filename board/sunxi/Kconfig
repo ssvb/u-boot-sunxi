@@ -402,6 +402,11 @@ config VIDEO_LCD_SSD2828_RESET
 	The reset pin of SSD2828 chip. This takes a string in the format
 	understood by sunxi_name_to_gpio, e.g. PH1 for pin 1 of port H.
 
+config VIDEO_LCD_RESET
+	string "RESET pin of LCD panel"
+	depends on VIDEO_LCD_SSD2828
+	default ""
+
 config VIDEO_LCD_SSD2828
 	bool
 	select VIDEO_LCD_IF_PARALLEL
