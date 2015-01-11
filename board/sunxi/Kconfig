@@ -187,6 +187,12 @@ config TARGET_I12_TVBOX
 	bool "I12_TVBOX"
 	depends on MACH_SUN7I
 
+config TARGET_ICOU_FATTY_I
+	bool "ICOU Fatty I (7.85\" tablet)"
+	depends on MACH_SUN7I
+	---help---
+	More details are available at http://linux-sunxi.org/ICOU_Fatty_I
+
 config TARGET_QT840A
 	bool "QT840A"
 	depends on MACH_SUN7I

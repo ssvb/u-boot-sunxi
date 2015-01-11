@@ -27,6 +27,7 @@ obj-$(CONFIG_TARGET_CUBIEBOARD)		+= dram_cubieboard.o
 obj-$(CONFIG_TARGET_CUBIEBOARD2)	+= dram_cubieboard2.o
 obj-$(CONFIG_TARGET_CUBIETRUCK)		+= dram_cubietruck.o
 obj-$(CONFIG_TARGET_I12_TVBOX)		+= dram_sun7i_384_1024_iow16.o
+obj-$(CONFIG_TARGET_ICOU_FATTY_I)	+= dram_icou_fatty_i.o
 obj-$(CONFIG_TARGET_MELE_A1000)		+= dram_sun4i_360_512.o
 obj-$(CONFIG_TARGET_MELE_A1000G)	+= dram_sun4i_360_1024_iow8.o
 obj-$(CONFIG_TARGET_MELE_M3)		+= dram_sun7i_384_1024_iow16.o
