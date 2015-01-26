@@ -3,22 +3,23 @@
 #include "common.h"
 #include <asm/arch/dram.h>
 
-static struct dram_para dram_para = { /* DRAM timings: 6-5-5-13 (360 MHz) */
-	.clock = 360,
+static struct dram_para dram_para = { /* DRAM timings: 6-6-6-15 (396 MHz) */
+	.clock = 312,
+	.mbus_clock = 208,
 	.type = 3,
 	.rank_num = 1,
 	.cas = 6,
 	.zq = 0x7b,
 	.odt_en = 0,
-	.tpr0 = 0x248d5590,
-	.tpr1 = 0xa088,
+	.tpr0 = 0x2a8f6690,
+	.tpr1 = 0xa0a0,
 	.tpr2 = 0x22a00,
-	.tpr3 = 0x0,
-	.tpr4 = 0x0,
-	.tpr5 = 0x0,
-	.emr1 = 0x0,
-	.emr2 = 0x0,
-	.emr3 = 0x0,
+	.tpr3 = 0,
+	.tpr4 = 0,
+	.tpr5 = 0,
+	.emr1 = 4,
+	.emr2 = 0,
+	.emr3 = 0,
 	.active_windowing = 1,
 };
 
