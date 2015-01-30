@@ -21,14 +21,14 @@ MEMORY { .sdram : ORIGIN = CONFIG_SPL_BSS_START_ADDR, \
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
-ENTRY(_start)
+ENTRY(CONFIG_SPL_ENTRY_POINT_FUNCTION)
 SECTIONS
 {
 	.text      :
 	{
 		__start = .;
 		*(.vectors)
-		arch/arm/cpu/armv7/start.o	(.text)
+		CONFIG_SPL_ENTRY_POINT_OBJ_FILE	(.text)
 		*(.text*)
 	} > .sram
 
