@@ -155,7 +155,7 @@
 
 #define CONFIG_SPL_START_S_PATH "arch/arm/cpu/armv7/sunxi"
 #define CONFIG_SPL_TEXT_BASE		0x2000
-#define CONFIG_SPL_MAX_SIZE		0x4000		/* 16 KiB */
+#define CONFIG_SPL_MAX_SIZE		0x3800		/* 14 KiB */
 
 #else /* CONFIG_SPL */
 
