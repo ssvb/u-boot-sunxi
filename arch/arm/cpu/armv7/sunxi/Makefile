@@ -40,5 +40,6 @@ obj-$(CONFIG_MACH_SUN7I)	+= dram_sun4i.o
 obj-$(CONFIG_MACH_SUN8I)	+= dram_sun8i.o
 ifdef CONFIG_SPL_FEL
 obj-y	+= start.o
+extra-y	+= start_fel.o
 endif
 endif

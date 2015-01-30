@@ -85,6 +85,16 @@ void s_init(void)
 	timer_init();
 	gpio_init();
 	i2c_init_board();
+
+#ifdef CONFIG_SPL_BUILD
+	preloader_console_init();
+
+#ifdef CONFIG_SPL_I2C_SUPPORT
+	/* Needed early by sunxi_board_init if PMU is enabled */
+	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+#endif
+	sunxi_board_init();
+#endif
 }
 
 #ifdef CONFIG_SPL_BUILD
@@ -102,22 +112,6 @@ u32 spl_boot_device(void)
 u32 spl_boot_mode(void)
 {
 	return MMCSD_MODE_RAW;
-}
-
-void board_init_f(ulong dummy)
-{
-	preloader_console_init();
-
-#ifdef CONFIG_SPL_I2C_SUPPORT
-	/* Needed early by sunxi_board_init if PMU is enabled */
-	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
-#endif
-	sunxi_board_init();
-
-	/* Clear the BSS. */
-	memset(__bss_start, 0, __bss_end - __bss_start);
-
-	board_init_r(NULL, 0);
 }
 #endif
 
