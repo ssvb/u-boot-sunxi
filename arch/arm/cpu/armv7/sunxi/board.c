@@ -30,6 +30,10 @@
 struct fel_stash {
 	uint32_t sp;
 	uint32_t lr;
+	uint32_t cpsr;
+	uint32_t sctlr;
+	uint32_t vbar;
+	uint32_t cr;
 };
 
 struct fel_stash fel_stash __attribute__((section(".data")));
@@ -108,15 +112,14 @@ void s_init(void)
  */
 u32 spl_boot_device(void)
 {
-	/*
-	 * Have we been asked to return to the FEL portion of the boot ROM?
-	 * TODO: We need a more robust test here, or bracket this with
-	 * #ifdef CONFIG_SPL_FEL.
-	 */
-	if (fel_stash.lr >= 0xffff0000 && fel_stash.lr < 0xffff4000)
+#ifdef CONFIG_SPL_FEL
+	return BOOT_DEVICE_BOARD;
+#else
+	if (memcmp((void *)4, "eGON.BT0", 8) == 0)
+		return BOOT_DEVICE_MMC1;
+	else
 		return BOOT_DEVICE_BOARD;
-
-	return BOOT_DEVICE_MMC1;
+#endif
 }
 
 /* No confirmation data available in SPL yet. Hardcode bootmode */
