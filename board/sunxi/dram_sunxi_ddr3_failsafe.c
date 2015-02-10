@@ -4,8 +4,8 @@
 #include <asm/arch/dram.h>
 
 static struct dram_para dram_para = { /* DRAM timings: 6-6-6-15 (396 MHz) */
-	.clock = 312,
-	.mbus_clock = 208,
+	.clock = 360,
+	.mbus_clock = 240,
 	.type = 3,
 	.rank_num = 1,
 	.cas = 6,
