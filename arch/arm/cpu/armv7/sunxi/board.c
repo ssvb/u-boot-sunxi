@@ -236,11 +236,191 @@ void reset_cpu(ulong addr)
 #endif
 }
 
+#ifndef CONFIG_SPL_BUILD
+
+#define spi_flash_data orange_pi_pc_uboot_spl
+
+extern char orange_pi_pc_uboot_spl[24 * 1024];
+
+#define SUN4I_CTL_ENABLE			BIT(0)
+#define SUN4I_CTL_MASTER			BIT(1)
+#define SUN4I_CTL_CPHA				BIT(2)
+#define SUN4I_CTL_CPOL				BIT(3)
+#define SUN4I_CTL_CS_ACTIVE_LOW			BIT(4)
+#define SUN4I_CTL_LMTF				BIT(6)
+#define SUN4I_CTL_TF_RST			BIT(8)
+#define SUN4I_CTL_RF_RST			BIT(9)
+#define SUN4I_CTL_XCH				BIT(10)
+#define SUN4I_CTL_CS_MASK			0x3000
+#define SUN4I_CTL_CS(cs)			(((cs) << 12) & SUN4I_CTL_CS_MASK)
+#define SUN4I_CTL_DHB				BIT(15)
+#define SUN4I_CTL_CS_MANUAL			BIT(16)
+#define SUN4I_CTL_CS_LEVEL			BIT(17)
+#define SUN4I_CTL_TP				BIT(18)
+
+#define CCM_SPI2_CLK				(0x01C20000 + 0xA8)
+#define CCM_AHB_GATING0				(0x01C20000 + 0x60)
+
+#define SPI2_CCTL				(0x01C17000 + 0x1C)
+#define SPI2_CTL				(0x01C17000 + 0x08)
+#define SPI2_RX					(0x01C17000 + 0x00)
+#define SPI2_TX					(0x01C17000 + 0x04)
+#define SPI2_FIFO_STA				(0x01C17000 + 0x28)
+#define SPI2_TC					(0x01C17000 + 0x24)
+#define SPI2_DMACTL				(0x01C17000 + 0x14)
+#define SPI2_BC					(0x01C17000 + 0x20)
+#define SPI2_XMIT_CNT				(0x01C17000 + 0x24)
+
+static void setup_spi2(void)
+{
+	int reg_val, best_pll6_divisor;
+	unsigned pll6_hz = clock_get_pll6();
+
+	sunxi_gpio_set_cfgpin(SUNXI_GPE(0), SUN5I_GPE_SPI2);
+	sunxi_gpio_set_cfgpin(SUNXI_GPE(1), SUN5I_GPE_SPI2);
+	sunxi_gpio_set_cfgpin(SUNXI_GPE(2), SUN5I_GPE_SPI2);
+	sunxi_gpio_set_cfgpin(SUNXI_GPE(3), SUN5I_GPE_SPI2);
+	sunxi_gpio_set_pull(SUNXI_GPE(0), SUNXI_GPIO_PULL_UP);
+
+	best_pll6_divisor = DIV_ROUND_UP(pll6_hz, 150000000);
+	if (best_pll6_divisor > 16) {
+		printf("Error: invalid pll6 divisor\n");
+		while (1) {}
+	}
+
+	reg_val = readl(CCM_AHB_GATING0);
+	reg_val |= (1 << 22); /* CCM_AHB_GATE_SPI2; */
+	writel(reg_val, CCM_AHB_GATING0);
+
+	reg_val = readl(CCM_SPI2_CLK);
+	reg_val &= ~(3 << 24);
+	reg_val |= 1 << 24;
+	reg_val |= (1 << 31) | (best_pll6_divisor - 1);
+	writel(reg_val, CCM_SPI2_CLK);  /* PLL6/best_divisor (<=150MHz) */
+
+	reg_val = (1 << 12) | 1;
+	writel(reg_val, SPI2_CCTL);  /* AHB/4 */
+
+	reg_val = readl(SPI2_CTL);
+	reg_val |= SUN4I_CTL_ENABLE | SUN4I_CTL_TF_RST | SUN4I_CTL_RF_RST;
+	writel(reg_val, SPI2_CTL);
+}
+
+/*
+ * This is a hackish implementation, which only supports the READ DATA BYTES
+ * command, tries to predict the desired output and has some sanity checks
+ * to verify if the assumptions were correct. We can't really implement a
+ * correct handling of the protocol because the timing constraints are too
+ * tight.
+ *
+ * The Allwinner's BROM first requests 256 bytes starting from the address 0,
+ * verifies correctness of the header and then rewinds back to the address 0
+ * and starts requesting 2048 byte blocks one after another. We just produce
+ * this particular output and the BROM seems to be happy.
+ *
+ * Uses SPI2 on Allwinner A13 to emulate the SPI NOR flash.
+ */
+static void emulate_spi_flash(void)
+{
+	int txdatacount = 0, rxcount = 0;
+	int offs = 0;
+
+	setup_spi2();
+
+	printf("\nEmulating SPI NOR flash on SPI2...\n");
+
+	writeb(0, SPI2_TX);
+	writeb(0, SPI2_TX);
+	writeb(0, SPI2_TX);
+	writeb(0, SPI2_TX);
+
+	/* Fill the TX buffer */
+	for (offs = 0; offs < 48; offs++) {
+		writeb(spi_flash_data[offs], SPI2_TX);
+		txdatacount++;
+	}
+
+	while (1) {
+		int rxfifo = readl(SPI2_FIFO_STA) & 0x7F;
+		int txfifo = (readl(SPI2_FIFO_STA) >> 16) & 0x7F;
+
+		if (txfifo < 32) {
+			if (txdatacount == 256) {
+				writeb(0, SPI2_TX);
+				writeb(0, SPI2_TX);
+				writeb(0, SPI2_TX);
+				writeb(0, SPI2_TX);
+				offs = 0;
+			} else if ((txdatacount - 256) % 2048 == 0) {
+				writeb(0, SPI2_TX);
+				writeb(0, SPI2_TX);
+				writeb(0, SPI2_TX);
+				writeb(0, SPI2_TX);
+			}
+			writeb(spi_flash_data[offs++], SPI2_TX);
+			writeb(spi_flash_data[offs++], SPI2_TX);
+			writeb(spi_flash_data[offs++], SPI2_TX);
+			writeb(spi_flash_data[offs++], SPI2_TX);
+			txdatacount += 4;
+		}
+
+		if (txfifo < 16) {
+			printf("Error: txfifo underflow\n");
+			while (1) {};
+		}
+
+		if (rxfifo >= 4) {
+			int b1 = readb(SPI2_RX);
+			int b2 = readb(SPI2_RX);
+			int b3 = readb(SPI2_RX);
+			int b4 = readb(SPI2_RX);
+			int addr = (b2 << 16) | (b3 << 8) | b4;
+
+			if ((rxcount - 260) % 2052 == 0) {
+				/* READ DATA BYTES */
+				if (b1 != 3) {
+					printf("Error: unexpected command %d (wanted READ DATA BYTES)\n", b1);
+					while (1) {};
+				}
+				if (((rxcount - 260) / 2052) * 2048 != addr) {
+					printf("Error: unexpected address %d for READ DATA BYTES\n", addr);
+					while (1) {};
+				}
+			}
+			rxcount += 4;
+		}
+
+		if (rxfifo > 48) {
+			printf("Error: rxfifo overflow\n");
+			while (1) {};
+		}
+
+		if (offs >= sizeof(spi_flash_data)) {
+			while ((txfifo = (readl(SPI2_FIFO_STA) >> 16) & 0x7F)) {}
+			break;
+		}
+	}
+
+	printf("The emulated NOR flash has been fully read, stopping.\n");
+}
+
+#endif
+
 #ifndef CONFIG_SYS_DCACHE_OFF
 void enable_caches(void)
 {
 	/* Enable D-cache. I-cache is already enabled in start.S */
 	dcache_enable();
+
+#ifndef CONFIG_SPL_BUILD
+	/*
+	 * We have just enabled the D-cache and have everything ready,
+	 * this is a convinient place to inject the SPI demo
+	 */
+	while (1) {
+		emulate_spi_flash();
+	}
+#endif
 }
 #endif
 
