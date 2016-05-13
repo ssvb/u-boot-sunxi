@@ -2206,33 +2206,31 @@ void reset_cpu(ulong addr)
  */
 static void setup_spi2(void)
 {
-	int reg_val, best_pll6_divisor;
-	unsigned pll6_hz = clock_get_pll6();
+	u32 reg_val;
 
+#if defined(CONFIG_MACH_SUN5I)
+	/* SPI2 in PE0-PE3 pins */
 	sunxi_gpio_set_cfgpin(SUNXI_GPE(0), SUN5I_GPE_SPI2);
 	sunxi_gpio_set_cfgpin(SUNXI_GPE(1), SUN5I_GPE_SPI2);
 	sunxi_gpio_set_cfgpin(SUNXI_GPE(2), SUN5I_GPE_SPI2);
 	sunxi_gpio_set_cfgpin(SUNXI_GPE(3), SUN5I_GPE_SPI2);
 	sunxi_gpio_set_pull(SUNXI_GPE(0), SUNXI_GPIO_PULL_UP);
-
-	best_pll6_divisor = DIV_ROUND_UP(pll6_hz, 150000000);
-	if (best_pll6_divisor > 16) {
-		printf("Error: invalid pll6 divisor\n");
-		while (1) {}
-	}
+#elif defined(CONFIG_MACH_SUN4I) || defined(CONFIG_MACH_SUN7I)
+	/* SPI2 on PC19-PC22 pins */
+	sunxi_gpio_set_cfgpin(SUNXI_GPC(19), SUNXI_GPC_SPI2);
+	sunxi_gpio_set_cfgpin(SUNXI_GPC(20), SUNXI_GPC_SPI2);
+	sunxi_gpio_set_cfgpin(SUNXI_GPC(21), SUNXI_GPC_SPI2);
+	sunxi_gpio_set_cfgpin(SUNXI_GPC(22), SUNXI_GPC_SPI2);
+	sunxi_gpio_set_pull(SUNXI_GPC(19), SUNXI_GPIO_PULL_UP);
+#else
+#error SPI2 pin muxing configuration is needed
+#endif
 
 	reg_val = readl(CCM_AHB_GATING0);
 	reg_val |= (1 << 22);
 	writel(reg_val, CCM_AHB_GATING0); /* CCM_AHB_GATE_SPI2; */
 
-	reg_val = readl(CCM_SPI2_CLK);
-	reg_val &= ~(3 << 24);
-	reg_val |= 1 << 24;
-	reg_val |= (1 << 31) | (best_pll6_divisor - 1);
-	writel(reg_val, CCM_SPI2_CLK);    /* PLL6/best_divisor (<=150MHz) */
-
-	reg_val = (1 << 12) | 1;
-	writel(reg_val, SPI2_CCTL);       /* AHB/4 */
+	writel((1 << 31), CCM_SPI2_CLK);  /* 24MHz from OSC24M */
 
 	/* Enable SPI2 as SPI slave */
 	reg_val = readl(SPI2_CTL);
