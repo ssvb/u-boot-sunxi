@@ -149,7 +149,8 @@ static char spi_flash_data[8192] = {
 	0xBD, 0xE8, 0x9C, 0xFE, 0xFF, 0xFF, 0x95, 0xFE, 0xFF, 0xFF, 0x91, 0xFE, 0xFF, 0xFF, 0x8E, 0xFE, 0xFF,
 	0xFF, 0x8A, 0xFE, 0xFF, 0xFF, 0x86, 0xFE, 0xFF, 0xFF, 0x87, 0xFE, 0xFF, 0xFF, 0x83, 0xFE, 0xFF, 0xFF,
 	0x8A, 0xFE, 0xFF, 0xFF, 0x8E, 0xFE, 0xFF, 0xFF, 0xAC, 0xFE, 0xFF, 0xFF, 0xCA, 0xFE, 0xFF, 0xFF, 0x46,
-	0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 #endif
 
 struct fel_stash {
@@ -361,6 +362,37 @@ void reset_cpu(ulong addr)
 
 #ifndef CONFIG_SPL_BUILD
 
+#define PLL1_CFG_REG (0x01C20000)
+
+unsigned long get_pll1(void)
+{
+	u32 cfg = readl(PLL1_CFG_REG);
+	u32 p = 1 << ((cfg >> 16) & 3);
+	u32 n = (cfg >> 8) & 0x1F;
+	u32 k = ((cfg >> 4) & 3) + 1;
+	u32 m = ((cfg >> 0) & 3) + 1;
+	u32 clk = ((u32)24000000 * n * k) / (m * p);
+	return clk;
+}
+
+void setup_ccnt(void)
+{
+	u32 regval;
+	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r" (regval));
+	regval |= (1 << 3); /* increment every 64 cycles */
+	regval |= (1 << 0); /* enable counters */
+	asm volatile("mcr p15, 0, %0, c9, c12, 0" :: "r" (regval));
+	/* enable CCNT */
+	asm volatile("mcr p15, 0, %0, c9, c12, 1" :: "r"(1 << 31));
+}
+
+static inline u32 get_ccnt(void)
+{
+	u32 regval;
+	asm volatile("mrc p15, 0, %0, c9, c13, 0": "=r" (regval));
+	return regval;
+}
+
 #define SUN4I_CTL_ENABLE                        BIT(0)
 #define SUN4I_CTL_MASTER                        BIT(1)
 #define SUN4I_CTL_CPHA                          BIT(2)
@@ -447,7 +479,9 @@ static void emulate_spi_flash(void)
 	unsigned long before, after;
 	int txdatacount = 0, rxcount = 0;
 	int offs = 0;
+	unsigned before_ccnt = 0, after_ccnt = 0;
 
+	setup_ccnt();
 	setup_spi2();
 
 	printf("\nEmulating SPI NOR flash on SPI2...\n");
@@ -506,6 +540,7 @@ static void emulate_spi_flash(void)
 			int addr = (b2 << 16) | (b3 << 8) | b4;
 
 			if ((rxcount - 260) % 2052 == 0) {
+				before_ccnt = get_ccnt();
 				if (b1 != 3) {
 					printf("Error: unexpected command %d (wanted READ DATA BYTES)\n", b1);
 					while (1) {};
@@ -529,12 +564,16 @@ static void emulate_spi_flash(void)
 		}
 	}
 
+	after_ccnt = get_ccnt();
 	after = timer_get_us();
 	printf("All %d bytes of the emulated NOR flash data have been sent.\n",
 	       (int)sizeof(spi_flash_data));
 	if (after != before)
 		printf("The average transfer speed: %d KB/s.\n",
 		       (int)(1000 * txdatacount / (after - before)));
+	if (after_ccnt != before_ccnt)
+		printf("SPI clock = %d KHz\n",
+		       (int)(get_pll1() / 1000 / 8 * 2048 / (after_ccnt - before_ccnt)));
 }
 
 #endif
